@@ -19,7 +19,16 @@ const PORT = process.env.PORT || 3000;
  * 2. Debe retornar el arreglo con status 200.
  */
 app.get('/equipos', async (req, res) => {
-    // Tu código aquí
+    try {
+        // Buscamos todos los equipos usando el modelo
+        const equipos = await Equipo.find();
+        
+        // Retornamos el arreglo con los equipos y el código de estado 200 (OK)
+        res.status(200).json(equipos);
+    } catch (error) {
+        // Por buena práctica, agregamos un catch por si falla la base de datos
+        res.status(500).json({ error: "Error al obtener los equipos" });
+    }
 });
 
 /**
@@ -33,6 +42,18 @@ app.get('/equipos', async (req, res) => {
  */
 app.get('/equipos/buscar', async (req, res) => {
     // Tu código aquí
+    try{
+        const tecnicoBuscado =req.query.tecnico;
+        const filtro ={
+            tecnico :{$regex: tecnicoBuscado,$options:'i'}
+        };
+    const equiposFiltrados = await Equipo.find(filtro);
+    res.status(200).json(equiposFiltrados);
+
+
+    }catch(error){
+        res.status(500).json({error:"error al realizar busqueda"})
+    }
 });
 
 /**
@@ -45,7 +66,24 @@ app.get('/equipos/buscar', async (req, res) => {
  * 5. Si no lo encuentra, retornar un status 404 y { error: "Equipo no encontrado" }.
  */
 app.get('/equipos/:id', async (req, res) => {
-    // Tu código aquí
+    try {
+        const id = req.params.id;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: "ID inválido" });
+        }
+
+        const equipo = await Equipo.findById(id);
+
+        if (!equipo) {
+            return res.status(404).json({ error: "Equipo no encontrado" });
+        }
+
+        res.status(200).json(equipo);
+
+    } catch (error) {
+        res.status(500).json({ error: "Error interno del servidor al buscar el equipo" });
+    }
 });
 
 /**
@@ -57,7 +95,22 @@ app.get('/equipos/:id', async (req, res) => {
  * 4. Si se guarda exitosamente, debe retornar el nuevo equipo y status 201.
  */
 app.post('/equipos', async (req, res) => {
-    // Tu código aquí
+    try {
+        const { equipo, tecnico, continente, campeonatos_mundiales } = req.body;
+
+        const nuevoEquipo = new Equipo({
+            equipo,
+            tecnico,
+            continente,
+            campeonatos_mundiales
+        });
+
+        await nuevoEquipo.save();
+
+        res.status(201).json(nuevoEquipo);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
 });
 
 /**
@@ -70,9 +123,35 @@ app.post('/equipos', async (req, res) => {
  * 5. Si hay errores de validación (por ejemplo, tipos incorrectos), retorna 400.
  */
 app.put('/equipos/:id', async (req, res) => {
-    // Tu código aquí
-});
+    try {
+        const id = req.params.id;
 
+        // 1. Validamos que el ID sea correcto
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: "ID inválido" });
+        }
+
+        const { equipo, tecnico, continente, campeonatos_mundiales } = req.body;
+        if (!equipo || !tecnico || !continente || campeonatos_mundiales === undefined) {
+            return res.status(400).json({ error: "Faltan campos requeridos" });
+        }
+
+        const equipoActualizado = await Equipo.findByIdAndUpdate(
+            id, 
+            req.body, 
+            { new: true, runValidators: true } 
+        );
+
+        if (!equipoActualizado) {
+            return res.status(404).json({ error: "Equipo no encontrado" });
+        }
+
+        res.status(200).json(equipoActualizado);
+
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
 /**
  * TODO: Implementar un endpoint DELETE /equipos/:id
  * 1. Valida que el ID sea un ObjectId válido (400 si no).
@@ -81,7 +160,25 @@ app.put('/equipos/:id', async (req, res) => {
  * 4. Si se eliminó correctamente, retorna status 200.
  */
 app.delete('/equipos/:id', async (req, res) => {
-    // Tu código aquí
+    try {
+        const id = req.params.id;
+
+        // 1. Validamos que el ID sea correcto
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: "ID inválido" });
+        }
+
+        const equipoEliminado = await Equipo.findByIdAndDelete(id);
+
+        if (!equipoEliminado) {
+            return res.status(404).json({ error: "Equipo no encontrado" });
+        }
+
+        res.status(200).json({ mensaje: "Equipo eliminado correctamente" });
+
+    } catch (error) {
+        res.status(500).json({ error: "Error interno del servidor al eliminar" });
+    }
 });
 
 // Iniciar el servidor solo si este archivo se ejecuta directamente
